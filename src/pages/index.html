@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Element Debugger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better centering and visual focus */
+        .video-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        #video-feedback {
+            min-height: 4rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans p-4">
+
+    <div class="video-container bg-white p-6 rounded-xl border border-gray-200">
+        <h1 class="text-3xl font-bold mb-4 text-center text-indigo-700">Video Loading Test</h1>
+
+        <!-- 
+            IMPORTANT: The 'src' attribute is removed here. The source is now set 
+            dynamically in the script block below to ensure the correct local path is used.
+        -->
+        <video id="myVideo" 
+               class="w-full rounded-lg mb-4 aspect-video bg-black" 
+               controls 
+               autoplay 
+               muted 
+               loop 
+               playsinline>
+            <!-- Fallback text if the browser can't load the video -->
+            Your browser does not support the video tag.
+        </video>
+
+        <div id="video-feedback" class="text-sm p-3 rounded-md bg-indigo-50 text-indigo-700 font-medium text-center">
+            Checking video status...
+        </div>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('myVideo');
+        const feedbackDiv = document.getElementById('video-feedback');
+        
+        // --- FIX APPLIED HERE ---
+        // Updated path to match the file name seen in your public folder: 
+        // index.html <script> section
+const localVideoPath = '/3129977-uhd_3840_2160_30fps.mp4';
+
+        function updateFeedback(message, className) {
+            feedbackDiv.textContent = message;
+            feedbackDiv.className = `text-sm p-3 rounded-md font-medium text-center ${className}`;
+        }
+
+        // 1. Set the source and trigger load
+        // We are now exclusively setting the source to your actual video file.
+        videoElement.innerHTML = `<source src="${localVideoPath}" type="video/mp4">Your browser does not support the video tag.`;
+        videoElement.load();
+        
+        // 2. Add Error Listener
+        videoElement.addEventListener('error', function() {
+            console.error('Video Error Details:', videoElement.error);
+            
+            // Check the specific error code for clarity
+            let errorMessage = 'An unknown error occurred.';
+            switch(videoElement.error.code) {
+                case 1: 
+                    errorMessage = 'Aborted: The fetch process was aborted by the user agent at the user\'s request.'; 
+                    break;
+                case 2: 
+                    errorMessage = 'Network Error: A network error caused the video fetch to fail.'; 
+                    break;
+                case 3: 
+                    errorMessage = 'Decode Error: The video is valid but cannot be decoded or is unsupported.'; 
+                    break;
+                case 4: 
+                    errorMessage = 'Source Not Found: The video file specified was not found or is inaccessible.'; 
+                    break;
+            }
+
+            updateFeedback(
+                `❌ ERROR LOADING VIDEO: ${errorMessage}. The attempted path was '${localVideoPath}'. Please double-check your file name and location in the 'public' folder.`,
+                'bg-red-100 text-red-700'
+            );
+
+        }, { once: true });
+
+        // 3. Add Success Listener
+        videoElement.addEventListener('loadeddata', function() {
+            updateFeedback(
+                '✅ Video loaded successfully! The path is correct.',
+                'bg-green-100 text-green-700'
+            );
+        }, { once: true });
+
+        // 4. Fallback/Initial Status Check
+        setTimeout(() => {
+             if (videoElement.readyState >= 2 && !videoElement.error) {
+                 updateFeedback(
+                    '✅ Video loaded successfully!',
+                    'bg-green-100 text-green-700'
+                );
+            } else if (videoElement.readyState === 0 && !videoElement.error) {
+                 updateFeedback(
+                    `⏳ Attempting to load: ${localVideoPath}`,
+                    'bg-yellow-100 text-yellow-700'
+                );
+            }
+        }, 500);
+
+    </script>
+</body>
+</html>
