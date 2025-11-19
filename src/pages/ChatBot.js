@@ -770,12 +770,14 @@ export default function App() {
 
         {/* Chatbot content */}
         <div className="relative z-10 flex flex-col h-screen bg-transparent">
-            <header className={`flex justify-between items-center p-4 bg-gray-900/80 backdrop-blur-lg shadow-2xl sticky top-0 z-10 border-b border-${themeColors.primary_color}-500/30`}>
-                <h1 className={`text-3xl font-extrabold ${themeColors.primary_text} flex items-center drop-shadow-md`}>
-                <MessageSquare className="w-7 h-7 mr-3" /> Sarkari Sahayak
+            {/* RESPONSIVE HEADER: Flex-col on mobile, row on md+ */}
+            <header className={`flex flex-col md:flex-row justify-between items-center p-3 md:p-4 bg-gray-900/80 backdrop-blur-lg shadow-2xl sticky top-0 z-10 border-b border-${themeColors.primary_color}-500/30 gap-3 md:gap-0`}>
+                <h1 className={`text-2xl md:text-3xl font-extrabold ${themeColors.primary_text} flex items-center drop-shadow-md`}>
+                <MessageSquare className="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3" /> Sarkari Sahayak
                 </h1>
 
-                <div className="flex items-center space-x-3">
+                {/* Header Actions: Scaled spacing for mobile */}
+                <div className="flex flex-wrap justify-center items-center gap-2 md:space-x-3">
                 
                 <Notifications onSelectNotification={(question) => handleSendMessage(question)} themeColors={themeColors} />
 
@@ -784,11 +786,11 @@ export default function App() {
                     className="relative p-2 rounded-full bg-gray-700/50 hover:bg-red-700 transition duration-300 shadow-xl ring-2 ring-gray-500/50" 
                     title="Clear Chat"
                 >
-                    <Trash2 className="w-6 h-6 text-red-400" />
+                    <Trash2 className="w-5 h-5 md:w-6 md:h-6 text-red-400" />
                 </button>
 
                 <button onClick={() => setShowEligibilityModal(true)} className={`relative p-2 rounded-full bg-gray-700/50 hover:bg-gray-700 transition duration-300 shadow-xl ring-2 ${themeColors.primary_ring}`} title="Check Eligibility">
-                    <CheckCircle className={`w-6 h-6 ${themeColors.primary_text}`} />
+                    <CheckCircle className={`w-5 h-5 md:w-6 md:h-6 ${themeColors.primary_text}`} />
                 </button>
 
                 <ThemeSelector />
@@ -808,26 +810,27 @@ export default function App() {
                 {isInitialState && messages.length === 0 ? renderInitialState() : renderChatHistory()}
             </main>
 
-            <footer className={`sticky bottom-0 w-full p-4 bg-gray-900/80 backdrop-blur-lg shadow-inner shadow-gray-900/50 border-t border-${themeColors.primary_color}-500/30`}>
-                <div className="flex items-end max-w-4xl mx-auto space-x-3">
+            {/* RESPONSIVE FOOTER: Adjusted padding and flex behavior */}
+            <footer className={`sticky bottom-0 w-full p-2 md:p-4 bg-gray-900/80 backdrop-blur-lg shadow-inner shadow-gray-900/50 border-t border-${themeColors.primary_color}-500/30`}>
+                <div className="flex items-end max-w-4xl mx-auto space-x-2 md:space-x-3">
                 <button 
                     onClick={handleVoiceMessage} 
-                    className={`p-3 rounded-full ${isRecording ? "bg-red-600 text-white animate-mic-pulse" : `bg-gray-700 ${themeColors.primary_text}`} ${themeColors.primary_hover} hover:text-white transition-colors duration-300 shadow-xl flex-shrink-0 border-2 border-transparent hover:border-${themeColors.primary_color}-500`} 
+                    className={`p-2 md:p-3 rounded-full ${isRecording ? "bg-red-600 text-white animate-mic-pulse" : `bg-gray-700 ${themeColors.primary_text}`} ${themeColors.primary_hover} hover:text-white transition-colors duration-300 shadow-xl flex-shrink-0 border-2 border-transparent hover:border-${themeColors.primary_color}-500`} 
                     title={isRecording ? "Stop Recording" : "Record Voice"}
                 >
-                    <Mic className="w-6 h-6" />
+                    <Mic className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
 
                 <button
                     onClick={() => setIsVoiceReply(!isVoiceReply)}
-                    className={`p-3 rounded-full ${isVoiceReply ? `${themeColors.primary_bg} text-white ${themeColors.primary_shadow}` : "bg-gray-700 text-gray-400"} ${themeColors.primary_hover} transition-colors duration-300 shadow-xl flex-shrink-0 border-2 border-transparent hover:border-${themeColors.primary_color}-500`}
+                    className={`p-2 md:p-3 rounded-full ${isVoiceReply ? `${themeColors.primary_bg} text-white ${themeColors.primary_shadow}` : "bg-gray-700 text-gray-400"} ${themeColors.primary_hover} transition-colors duration-300 shadow-xl flex-shrink-0 border-2 border-transparent hover:border-${themeColors.primary_color}-500`}
                     title="Toggle Voice Reply"
                 >
-                    <span className="text-xl leading-none">🎙️</span>
+                    <span className="text-lg md:text-xl leading-none">🎙️</span>
                 </button>
 
-                <label className={`p-3 bg-gray-700 rounded-full ${themeColors.primary_hover} transition-colors duration-300 shadow-xl cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-${themeColors.primary_color}-500`} title="Upload Document">
-                    <Upload className={`w-6 h-6 ${themeColors.primary_text}`} />
+                <label className={`p-2 md:p-3 bg-gray-700 rounded-full ${themeColors.primary_hover} transition-colors duration-300 shadow-xl cursor-pointer flex-shrink-0 border-2 border-transparent hover:border-${themeColors.primary_color}-500`} title="Upload Document">
+                    <Upload className={`w-5 h-5 md:w-6 md:h-6 ${themeColors.primary_text}`} />
                     <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleImageUpload} />
                 </label>
 
@@ -837,19 +840,19 @@ export default function App() {
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                     rows={1}
                     placeholder={`Ask in ${selectedLanguage}...`}
-                    className={`flex-1 p-4 border border-gray-600 rounded-2xl resize-none focus:ring-4 focus:ring-${themeColors.primary_color}-500/50 focus:border-${themeColors.primary_color}-500 bg-gray-700/70 text-gray-100 placeholder-gray-400 transition-all overflow-hidden max-h-40 text-base`}
+                    className={`flex-1 p-3 md:p-4 border border-gray-600 rounded-2xl resize-none focus:ring-4 focus:ring-${themeColors.primary_color}-500/50 focus:border-${themeColors.primary_color}-500 bg-gray-700/70 text-gray-100 placeholder-gray-400 transition-all overflow-hidden max-h-40 text-sm md:text-base`}
                 />
                 
                 <button 
                     onClick={() => handleSendMessage()} 
                     disabled={inputMessage.trim() === "" || isLoading} 
-                    className={`p-3 rounded-full ${themeColors.primary_bg} text-white ${themeColors.primary_hover} disabled:bg-gray-800 disabled:opacity-50 transition-colors duration-300 shadow-xl flex-shrink-0`}
+                    className={`p-2 md:p-3 rounded-full ${themeColors.primary_bg} text-white ${themeColors.primary_hover} disabled:bg-gray-800 disabled:opacity-50 transition-colors duration-300 shadow-xl flex-shrink-0`}
                     title="Send Message"
                 >
-                    <Send className="w-6 h-6" />
+                    <Send className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
                 </div>
-                <p className="text-xs text-center text-gray-500 mt-2">Press Enter to send • Shift + Enter for new line</p>
+                <p className="hidden md:block text-xs text-center text-gray-500 mt-2">Press Enter to send • Shift + Enter for new line</p>
             </footer>
         </div>
     </div>
