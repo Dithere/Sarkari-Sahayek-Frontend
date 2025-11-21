@@ -70,7 +70,7 @@ const TypingIndicator = ({ themeColors }) => (
   <div className="flex space-x-1.5 items-center p-4 bg-gray-800/80 text-gray-400 rounded-t-2xl rounded-br-2xl shadow-lg w-fit backdrop-blur-sm border border-gray-700/30">
     <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0s' }} />
     <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.2s' }} />
-    <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s' }} />
+    <div class={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s' }} />
   </div>
 );
 
@@ -629,15 +629,18 @@ export default function App() {
     try {
         const { base64, mimeType } = await fileToBase64(file);
         
-        // Detailed prompt to act as a document analyst
-        const systemPrompt = `You are an expert government document analyst. Your task is to perform OCR and analysis on the uploaded image. Identify the type of document (e.g., Aadhar card, Passport, Income Certificate, etc.), extract all key fields (Name, Date of Birth, ID number, Issuing Authority), and provide a concise summary of what this document is generally used for in India. Respond strictly in Hindi and keep the tone professional and helpful.`;
+        // UPDATED: System prompt to enforce structured and Hindi output
+        const systemPrompt = `आप एक विशेषज्ञ सरकारी दस्तावेज़ विश्लेषक हैं। आपका कार्य अपलोड की गई छवि पर OCR और विश्लेषण करना है। आपको इन 3 बिंदुओं पर स्पष्ट, संरचित और केवल हिंदी में जवाब देना है:
+1. दस्तावेज़ का प्रकार पहचानें (जैसे: आधार कार्ड, पासपोर्ट, आय प्रमाण पत्र, राशन कार्ड)।
+2. मुख्य क्षेत्रों (नाम, जन्म तिथि, आईडी संख्या, जारी करने वाला प्राधिकरण, पता) को निकालें।
+3. भारत में इस दस्तावेज़ का सामान्य उपयोग क्या है, इसका संक्षिप्त सारांश प्रदान करें।`;
         
         const payload = {
             contents: [
                 {
                     role: "user",
                     parts: [
-                        { text: "Analyze this document image and provide the required extraction and summary." },
+                        { text: "इस दस्तावेज़ छवि का विश्लेषण करें और आवश्यक निष्कर्षण और सारांश प्रदान करें।" },
                         {
                             inlineData: {
                                 mimeType: mimeType,
