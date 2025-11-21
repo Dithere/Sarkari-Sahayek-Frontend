@@ -773,7 +773,7 @@ export default function App() {
             {/* RESPONSIVE HEADER: Flex-col on mobile, row on md+ */}
             <header className={`flex flex-col md:flex-row justify-between items-center p-3 md:p-4 bg-gray-900/80 backdrop-blur-lg shadow-2xl sticky top-0 z-10 border-b border-${themeColors.primary_color}-500/30 gap-3 md:gap-0`}>
                 <h1 className={`text-2xl md:text-3xl font-extrabold ${themeColors.primary_text} flex items-center drop-shadow-md`}>
-                <MessageSquare className="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3" /> Sarkari Sahayak
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 mr-1 sm:mr-2 md:mr-3" /> Sarkari Sahayak
                 </h1>
 
                 {/* Header Actions: Scaled spacing for mobile */}
