@@ -1,6 +1,45 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 // Added Volume2 and VolumeX for the TTS toggle
 import { Send, Mic, Globe, MessageSquare, ChevronDown, X, Bell, Upload, CheckCircle, Trash2, Copy, Reply, Share, ThumbsUp, Laugh, Lightbulb, MoreHorizontal, FileText, Loader2, Bot, Volume2, VolumeX } from "lucide-react";
+
+// --- API Configuration and Utilities ---
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+const API_KEY = ""; // Placeholder, will be provided by Canvas runtime
+
+/**
+ * Utility function for exponential backoff retry logic.
+ * @param {Function} fn - The async function to execute.
+ * @param {number} maxRetries - Maximum number of retries.
+ * @returns {Promise<any>} The result of the function.
+ */
+const withExponentialBackoff = async (fn, maxRetries = 5) => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            if (attempt === maxRetries - 1) throw error;
+            const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+};
+
+/**
+ * Converts a File object to a Base64 encoded string.
+ * @param {File} file - The file to convert.
+ * @returns {Promise<{base64: string, mimeType: string}>}
+ */
+const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result.split(',')[1];
+            resolve({ base64: base64String, mimeType: file.type });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
 
 // --- Theme Configuration ---
 // Defines available themes and their Tailwind CSS classes
@@ -30,8 +69,8 @@ const FAQCard = ({ question, summary, onClick, themeColors }) => (
 const TypingIndicator = ({ themeColors }) => (
   <div className="flex space-x-1.5 items-center p-4 bg-gray-800/80 text-gray-400 rounded-t-2xl rounded-br-2xl shadow-lg w-fit backdrop-blur-sm border border-gray-700/30">
     <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0s' }} />
-    <div class={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.2s' }} />
-    <div class={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s' }} />
+    <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.2s' }} />
+    <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s' }} />
   </div>
 );
 
@@ -42,6 +81,12 @@ const TypingIndicator = ({ themeColors }) => (
 const parseAIContent = (data) => {
   if (!data) return null;
   const content = [];
+
+  // If data is a string (e.g., error message or direct text response from image analysis)
+  if (typeof data === 'string') {
+      // Simple text response formatting for image analysis result
+      return <p key="text-response" className="text-sm md:text-base break-words my-2 leading-relaxed whitespace-pre-wrap">{data}</p>;
+  }
 
   // 1. Main Answer Text
   if (data.answer)
@@ -129,7 +174,7 @@ const Notifications = ({ onSelectNotification, themeColors }) => {
   const dropdownRef = useRef(null);
 
   // Mock API call for notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch("https://sarkari-sahayek-1.onrender.com/api/notifications");
       const data = await res.json();
@@ -144,11 +189,11 @@ const Notifications = ({ onSelectNotification, themeColors }) => {
          { id: 3, title: "Passport renewal status update", time: "3d ago", question: "Check passport renewal status." },
       ]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [fetchNotifications]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -317,11 +362,12 @@ const MessageBubble = ({ message, themeColors, handleReact, handleMessageAction 
             <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%]" ref={menuRef}>
                 <div className={`relative p-3.5 md:p-5 ${bubbleClasses} backdrop-blur-sm`}>
                     {/* Render message content. Handles both string text and complex React elements (like images/parsed content) */}
-                    {typeof message.text === "string" ? (
+                    {/* If message.text is an object, it's already a React element (e.g., from parseAIContent) */}
+                    {message.text && (typeof message.text === "string" ? (
                         <p className="whitespace-pre-wrap leading-relaxed text-sm md:text-base">{message.text}</p>
                     ) : (
                         message.text
-                    )}
+                    ))}
 
                     {/* Actions Trigger (MoreHorizontal icon) */}
                     <button
@@ -566,24 +612,73 @@ export default function App() {
     }, 1500);
   };
 
-  // Mock handler for image/document upload
-  const handleImageUpload = (event) => {
+  // NEW: Image/Document Upload handler using Gemini Vision API
+  const handleImageUpload = async (event) => {
     const file = event.target.files[0];
-    if (!file) return;
-    
+    if (!file || !file.type.startsWith('image/')) return; // Only process image files
+
     const objectURL = URL.createObjectURL(file);
-    const userMessage = { id: Date.now(), text: <img src={objectURL} alt="Doc" className="max-h-48 rounded-lg border border-gray-600 shadow-xl" />, sender: "user", reactions: [] };
+    const userMessage = { id: Date.now(), text: <img src={objectURL} alt="Uploaded Document" className="max-h-48 rounded-lg border border-gray-600 shadow-xl" />, sender: "user", reactions: [] };
     setMessages(prev => [...prev, userMessage]);
     
     setIsInitialState(false); 
     setIsLoading(true);
     
-    // Simulate AI processing of the image
-    setTimeout(() => {
-        setMessages(prev => [...prev, { id: Date.now()+1, text: "I've analyzed your document. It appears to be an Income Certificate. This document is typically required for various Scholarship applications and EWS certificates.", sender: "ai", reactions: [] }]);
+    let aiMessageText = "I could not process the document. Please try again or upload a clearer image.";
+
+    try {
+        const { base64, mimeType } = await fileToBase64(file);
+        
+        // Detailed prompt to act as a document analyst
+        const systemPrompt = `You are an expert government document analyst. Your task is to perform OCR and analysis on the uploaded image. Identify the type of document (e.g., Aadhar card, Passport, Income Certificate, etc.), extract all key fields (Name, Date of Birth, ID number, Issuing Authority), and provide a concise summary of what this document is generally used for in India. Respond strictly in Hindi and keep the tone professional and helpful.`;
+        
+        const payload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: "Analyze this document image and provide the required extraction and summary." },
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64
+                            }
+                        }
+                    ]
+                }
+            ],
+            systemInstruction: {
+                parts: [{ text: systemPrompt }]
+            },
+        };
+
+        const response = await withExponentialBackoff(() => 
+            fetch(`${GEMINI_API_URL}?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+        );
+        
+        const result = await response.json();
+        
+        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content?.parts?.[0]?.text) {
+            aiMessageText = result.candidates[0].content.parts[0].text;
+        } else {
+             console.error("Gemini API returned no text:", result);
+             aiMessageText = "दस्तावेज़ का विश्लेषण करने में असमर्थ। (Unable to analyze the document.)";
+        }
+        
+    } catch (error) {
+        console.error("Error during image analysis via Gemini API:", error);
+        aiMessageText = "एपीआई त्रुटि के कारण दस्तावेज़ का विश्लेषण नहीं हो सका। कृपया अपनी इंटरनेट कनेक्टिविटी जांचें। (Document analysis failed due to an API error. Please check your internet connection.)";
+    } finally {
+        const aiMessage = { id: Date.now() + 1, text: parseAIContent(aiMessageText), sender: "ai", reactions: [] };
+        setMessages(prev => [...prev, aiMessage]);
         setIsLoading(false);
-    }, 2000);
+    }
   };
+
 
   return (
     <div className="relative h-[100dvh] overflow-hidden text-gray-100 font-sans bg-black">
@@ -645,8 +740,8 @@ export default function App() {
                     </div>
                     
                     {/* Clear Chat Button */}
-                    <button onClick={handleSendMessage.bind(null, "")} title="Clear Chat" className="p-2.5 rounded-full bg-gray-800/80 hover:bg-red-900/50 border border-gray-700 hover:border-red-500/50 transition shadow-lg group">
-                        <Trash2 onClick={() => { setMessages([]); setIsInitialState(true); }} className="w-5 h-5 md:w-6 md:h-6 text-gray-400 group-hover:text-red-400" />
+                    <button onClick={() => { setMessages([]); setIsInitialState(true); }} title="Clear Chat" className="p-2.5 rounded-full bg-gray-800/80 hover:bg-red-900/50 border border-gray-700 hover:border-red-500/50 transition shadow-lg group">
+                        <Trash2 className="w-5 h-5 md:w-6 md:h-6 text-gray-400 group-hover:text-red-400" />
                     </button>
                 </div>
             </header>
@@ -705,7 +800,7 @@ export default function App() {
                         {/* Document/Image Upload Button */}
                         <label className="p-3 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 cursor-pointer transition-all" title="Upload Document">
                             <Upload className="w-5 h-5" />
-                            <input type="file" accept="image/*, .pdf" className="hidden" onChange={handleImageUpload} />
+                            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                         </label>
                     </div>
 
@@ -737,21 +832,21 @@ export default function App() {
         
         {/* Global Styles for scrollbar and animations */}
         <style>{`
-            /* Custom Scrollbar Styles for better dark theme appearance */
-            .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 10px; }
-            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.5); }
-            /* Keyframe animations */
-            @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-            
-            /* Ensure textarea resizes properly */
-            textarea {
-                overflow: hidden; /* Hide scrollbar until needed */
-            }
+/* Custom Scrollbar Styles for better dark theme appearance */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.5); }
+/* Keyframe animations */
+@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+/* Ensure textarea resizes properly */
+textarea {
+    overflow: hidden; /* Hide scrollbar until needed */
+}
         `}</style>
     </div>
   );
