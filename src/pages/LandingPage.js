@@ -150,6 +150,81 @@ const TRANSLATIONS = {
         ],
     },
 };
+const ResultsDisplay = () => {
+        if (!response && !loading)
+            return (
+                <motion.div 
+                    className="h-full flex items-center justify-center bg-gray-800/80 border border-gray-700/50 p-6 rounded-2xl shadow-2xl transition-all duration-300 text-center text-gray-400 italic min-h-[300px] select-none"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                >
+                    <FileText className="w-6 h-6 mr-2" />
+                    {T.results_placeholder}
+                </motion.div>
+            );
+
+        if (loading)
+            return (
+                <motion.div 
+                    className="h-full flex flex-col items-center justify-center bg-gray-800/80 border border-indigo-500/30 p-6 rounded-2xl shadow-2xl shadow-indigo-900/50 text-indigo-300 min-h-[300px]"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                >
+                    <Loader2 className="w-8 h-8 mb-3 animate-spin" />
+                    <p className="font-semibold text-lg">{T.checking_label}</p>
+                </motion.div>
+            );
+
+        // If API returns an error and no schemes
+        if (response && response.schemes && response.schemes.length === 0) {
+            return (
+                <motion.div
+                    className="h-full flex flex-col items-center justify-center bg-red-800/50 border border-red-700/50 p-6 rounded-2xl shadow-2xl text-red-300 italic min-h-[300px] text-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                >
+                    <X className="w-8 h-8 mb-3 text-red-400" />
+                    <p className="font-semibold text-lg mb-2">{T.results_answer_error}</p>
+                    <p className="text-sm">{T.results_placeholder}</p>
+                </motion.div>
+            );
+        }
+
+        return (
+            <motion.div 
+                className="h-full text-left bg-gray-900 border border-indigo-500/30 p-6 rounded-2xl shadow-inner shadow-indigo-900/50 overflow-y-auto max-h-[450px] min-h-[300px] flex flex-col"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                <h3 className="font-bold text-xl text-indigo-300 mb-3 border-b border-gray-700 pb-2">{T.results_summary_title}</h3>
+                
+                <p className="font-semibold text-white mb-4 flex-shrink-0">{response.answer}</p>
+
+                <ul className="space-y-4 text-sm text-gray-300 flex-grow overflow-y-auto pr-2">
+                    <p className="font-medium text-gray-400 mt-2 flex-shrink-0">{T.results_recommended_schemes}</p>
+                    {response.schemes.map((scheme, index) => (
+                        <li key={index} className="flex flex-col p-3 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-indigo-600 transition-colors">
+                            {scheme.link ? (
+                                <a
+                                    href={scheme.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors"
+                                >
+                                    {scheme.name}
+                                </a>
+                            ) : (
+                                <span className="text-indigo-400 font-bold">{scheme.name}</span>
+                            )}
+                            <p className="text-xs mt-1 text-gray-400">
+                                {scheme.description}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            </motion.div>
+        );
 
 // The App component encapsulates the entire application, serving as the main entry point.
 export default function App() {
@@ -239,82 +314,12 @@ export default function App() {
         boxShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.5), 0 4px 6px -2px rgba(99, 102, 241, 0.5)",
     };
 
-    // Component for displaying the eligibility results (now defined inside App for state access)
-    const ResultsDisplay = () => {
-        if (!response && !loading)
-            return (
-                <motion.div 
-                    className="h-full flex items-center justify-center bg-gray-800/80 border border-gray-700/50 p-6 rounded-2xl shadow-2xl transition-all duration-300 text-center text-gray-400 italic min-h-[300px] select-none"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                >
-                    <FileText className="w-6 h-6 mr-2" />
-                    {T.results_placeholder}
-                </motion.div>
-            );
-
-        if (loading)
-            return (
-                <motion.div 
-                    className="h-full flex flex-col items-center justify-center bg-gray-800/80 border border-indigo-500/30 p-6 rounded-2xl shadow-2xl shadow-indigo-900/50 text-indigo-300 min-h-[300px]"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                >
-                    <Loader2 className="w-8 h-8 mb-3 animate-spin" />
-                    <p className="font-semibold text-lg">{T.checking_label}</p>
-                </motion.div>
-            );
-
-        // If API returns an error and no schemes
-        if (response && response.schemes && response.schemes.length === 0) {
-            return (
-                <motion.div
-                    className="h-full flex flex-col items-center justify-center bg-red-800/50 border border-red-700/50 p-6 rounded-2xl shadow-2xl text-red-300 italic min-h-[300px] text-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                >
-                    <X className="w-8 h-8 mb-3 text-red-400" />
-                    <p className="font-semibold text-lg mb-2">{T.results_answer_error}</p>
-                    <p className="text-sm">{T.results_placeholder}</p>
-                </motion.div>
-            );
-        }
-
-        return (
-            <motion.div 
-                className="h-full text-left bg-gray-900 border border-indigo-500/30 p-6 rounded-2xl shadow-inner shadow-indigo-900/50 overflow-y-auto max-h-[450px] min-h-[300px] flex flex-col"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                <h3 className="font-bold text-xl text-indigo-300 mb-3 border-b border-gray-700 pb-2">{T.results_summary_title}</h3>
-                
-                <p className="font-semibold text-white mb-4 flex-shrink-0">{response.answer}</p>
-
-                <ul className="space-y-4 text-sm text-gray-300 flex-grow overflow-y-auto pr-2">
-                    <p className="font-medium text-gray-400 mt-2 flex-shrink-0">{T.results_recommended_schemes}</p>
-                    {response.schemes.map((scheme, index) => (
-                        <li key={index} className="flex flex-col p-3 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-indigo-600 transition-colors">
-                            {scheme.link ? (
-                                <a
-                                    href={scheme.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors"
-                                >
-                                    {scheme.name}
-                                </a>
-                            ) : (
-                                <span className="text-indigo-400 font-bold">{scheme.name}</span>
-                            )}
-                            <p className="text-xs mt-1 text-gray-400">
-                                {scheme.description}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
-            </motion.div>
-        );
+    return (
+        <>
+            {/* 🔹 Your UI stays unchanged — just replace the old call */}
+            <ResultsDisplay response={response} loading={loading} T={T} />
+        </>
+    );
     };
 
     // Feature Card Component
