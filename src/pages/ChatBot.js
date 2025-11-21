@@ -3,11 +3,14 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Mic, Globe, MessageSquare, ChevronDown, X, Bell, Upload, CheckCircle, Trash2, Copy, Reply, Share, ThumbsUp, Laugh, Lightbulb, MoreHorizontal, FileText, Loader2, Bot, Volume2, VolumeX } from "lucide-react";
 
 // --- API Configuration and Utilities ---
+const CHAT_BASE_URL = "https://sarkari-sahayek-1.onrender.com/api";
+const CHAT_API_URL = `${CHAT_BASE_URL}/chat`;
+const DOCUMENT_UPLOAD_URL = `${CHAT_BASE_URL}/upload_document`; // Updated endpoint for Tesseract/GPT backend
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
 const API_KEY = ""; // Placeholder, will be provided by Canvas runtime
 
 /**
- * Utility function for exponential backoff retry logic.
+ * Utility function for exponential backoff retry logic. (Kept for other potential uses)
  * @param {Function} fn - The async function to execute.
  * @param {number} maxRetries - Maximum number of retries.
  * @returns {Promise<any>} The result of the function.
@@ -25,7 +28,7 @@ const withExponentialBackoff = async (fn, maxRetries = 5) => {
 };
 
 /**
- * Converts a File object to a Base64 encoded string.
+ * Converts a File object to a Base64 encoded string. (Kept for potential uses)
  * @param {File} file - The file to convert.
  * @returns {Promise<{base64: string, mimeType: string}>}
  */
@@ -70,7 +73,7 @@ const TypingIndicator = ({ themeColors }) => (
   <div className="flex space-x-1.5 items-center p-4 bg-gray-800/80 text-gray-400 rounded-t-2xl rounded-br-2xl shadow-lg w-fit backdrop-blur-sm border border-gray-700/30">
     <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0s' }} />
     <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.2s' }} />
-    <div class={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s' }} />
+    <div class={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s', marginRight: '4px' }} />
   </div>
 );
 
@@ -468,6 +471,8 @@ export default function App() {
   // Video autoplay fix (must be muted)
   useEffect(() => {
     if (videoRef.current) {
+        // Muting is often required for autoplay, but QUIC error is network-related.
+        // Keeping play() to handle potential DOM requirements.
         videoRef.current.play().catch(() => {});
     }
   }, []); 
@@ -488,7 +493,12 @@ export default function App() {
     recognition.onstart = () => setIsRecording(true);
     recognition.onend = () => setIsRecording(false);
     recognition.onresult = (event) => handleSendMessage(event.results[0][0].transcript);
-    recognition.onerror = (event) => console.error("Speech Recognition Error:", event.error);
+    
+    // REVERTED ERROR HANDLER: simply log the error
+    recognition.onerror = (event) => {
+        setIsRecording(false);
+        console.error("Speech Recognition Error:", event.error);
+    };
     
     recognitionRef.current = recognition;
     
@@ -522,15 +532,21 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      // Mock API endpoint for the AI chat logic
-      const response = await fetch("https://sarkari-sahayek-1.onrender.com/api/chat", {
+      // Use the mock API endpoint for the AI chat logic
+      const response = await fetch(CHAT_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Send user message, selected language, and session ID for context
         body: JSON.stringify({ message: text, language: selectedLanguage, session_id: sessionId }),
       });
       
-      if (!response.ok) throw new Error("API request failed.");
+      if (!response.ok) {
+        // Custom check for 403 error to inform the user about the API Key issue
+        if (response.status === 403 || response.status === 401) {
+            throw new Error("API Key Error (403/401): The custom chat API key is invalid or unauthorized.");
+        }
+        throw new Error("API request failed.");
+      }
       
       const data = await response.json();
       
@@ -544,7 +560,13 @@ export default function App() {
     
     } catch (error) {
       console.error("Chat API Error:", error);
-      const errorMessage = { id: Date.now() + 2, text: "⚠️ Server unavailable. Using offline mode.", sender: "ai", reactions: [] };
+      
+      let errorMessageText = "⚠️ सर्वर अनुपलब्ध है। (Server unavailable.)";
+      if (error.message.includes("403") || error.message.includes("401")) {
+          errorMessageText = "🔑 **API कुंजी त्रुटि (403/401)**: Chat API Key अमान्य या अनुपलब्ध है। कृपया जांच करें कि कुंजी सही से कॉन्फ़िगर की गई है।";
+      }
+
+      const errorMessage = { id: Date.now() + 2, text: errorMessageText, sender: "ai", reactions: [] };
       setMessages((prev) => [...prev, errorMessage]);
       
     } finally { 
@@ -612,7 +634,7 @@ export default function App() {
     }, 1500);
   };
 
-  // NEW: Image/Document Upload handler using Gemini Vision API
+  // Image/Document Upload handler using the Tesseract/GPT backend
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file || !file.type.startsWith('image/')) return; // Only process image files
@@ -627,57 +649,46 @@ export default function App() {
     let aiMessageText = "I could not process the document. Please try again or upload a clearer image.";
 
     try {
-        const { base64, mimeType } = await fileToBase64(file);
+        // 1. Prepare FormData for FastAPI backend
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('session_id', sessionId); 
         
-        // UPDATED: System prompt to enforce structured and Hindi output
-        const systemPrompt = `आप एक विशेषज्ञ सरकारी दस्तावेज़ विश्लेषक हैं। आपका कार्य अपलोड की गई छवि पर OCR और विश्लेषण करना है। आपको इन 3 बिंदुओं पर स्पष्ट, संरचित और केवल हिंदी में जवाब देना है:
-1. दस्तावेज़ का प्रकार पहचानें (जैसे: आधार कार्ड, पासपोर्ट, आय प्रमाण पत्र, राशन कार्ड)।
-2. मुख्य क्षेत्रों (नाम, जन्म तिथि, आईडी संख्या, जारी करने वाला प्राधिकरण, पता) को निकालें।
-3. भारत में इस दस्तावेज़ का सामान्य उपयोग क्या है, इसका संक्षिप्त सारांश प्रदान करें।`;
+        // 2. Make fetch call to the Tesseract/GPT backend endpoint
+        const response = await fetch(DOCUMENT_UPLOAD_URL, {
+            method: 'POST',
+            // No need to set Content-Type; fetch does it automatically for FormData
+            body: formData, 
+        });
         
-        const payload = {
-            contents: [
-                {
-                    role: "user",
-                    parts: [
-                        { text: "इस दस्तावेज़ छवि का विश्लेषण करें और आवश्यक निष्कर्षण और सारांश प्रदान करें।" },
-                        {
-                            inlineData: {
-                                mimeType: mimeType,
-                                data: base64
-                            }
-                        }
-                    ]
-                }
-            ],
-            systemInstruction: {
-                parts: [{ text: systemPrompt }]
-            },
-        };
-
-        const response = await withExponentialBackoff(() => 
-            fetch(`${GEMINI_API_URL}?key=${API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-        );
-        
-        const result = await response.json();
-        
-        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content?.parts?.[0]?.text) {
-            aiMessageText = result.candidates[0].content.parts[0].text;
-        } else {
-             console.error("Gemini API returned no text:", result);
-             aiMessageText = "दस्तावेज़ का विश्लेषण करने में असमर्थ। (Unable to analyze the document.)";
+        // 3. Check response status
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Backend API Failed Response:", errorBody);
+            throw new Error(`Backend API failed with status: ${response.status}`);
         }
         
+        // 4. Process structured JSON response
+        const data = await response.json();
+        
+        // Use the existing structured parsing logic
+        const aiMessageContent = parseAIContent(data);
+        const aiMessage = { id: Date.now() + 1, text: aiMessageContent, sender: "ai", reactions: [] };
+        setMessages(prev => [...prev, aiMessage]);
+        
+        // If voice reply is enabled, speak the answer text
+        if (isVoiceReply && data.answer) speakText(data.answer);
+
     } catch (error) {
-        console.error("Error during image analysis via Gemini API:", error);
-        aiMessageText = "एपीआई त्रुटि के कारण दस्तावेज़ का विश्लेषण नहीं हो सका। कृपया अपनी इंटरनेट कनेक्टिविटी जांचें। (Document analysis failed due to an API error. Please check your internet connection.)";
-    } finally {
+        console.error("Error during image analysis via Tesseract/GPT backend:", error);
+        
+        aiMessageText = error.message.includes("403") || error.message.includes("401") 
+                        ? "🔑 **API कुंजी त्रुटि (403/401)**: Tesseract/GPT बैकएंड Key अमान्य या अनुपलब्ध है। (Invalid or unauthorized Key.)" 
+                        : `बैकएंड एपीआई त्रुटि के कारण दस्तावेज़ का विश्लेषण नहीं हो सका। कृपया अपनी इंटरनेट कनेक्टिविटी या बैकएंड स्थिति जांचें। (Document analysis failed due to an API error: ${error.message})`;
+
         const aiMessage = { id: Date.now() + 1, text: parseAIContent(aiMessageText), sender: "ai", reactions: [] };
         setMessages(prev => [...prev, aiMessage]);
+    } finally {
         setIsLoading(false);
     }
   };
@@ -793,9 +804,14 @@ export default function App() {
                     <div className="flex gap-2 md:gap-3 pb-1">
                         {/* Voice Input Button */}
                         <button 
-                            onClick={() => { if(recognitionRef.current) isRecording ? recognitionRef.current.stop() : recognitionRef.current.start() }} 
+                            onClick={() => { 
+                                // Only call start/stop if recognition is supported and available
+                                if(recognitionRef.current) isRecording ? recognitionRef.current.stop() : recognitionRef.current.start() 
+                            }} 
                             title={isRecording ? "Stop Recording" : "Start Voice Input"}
-                            className={`p-3 rounded-full transition-all duration-300 ${isRecording ? "bg-red-500/20 text-red-500 ring-2 ring-red-500 animate-pulse" : "bg-gray-800 hover:bg-gray-700 text-gray-400"}`}
+                            // Disable if not supported
+                            disabled={!recognitionRef.current}
+                            className={`p-3 rounded-full transition-all duration-300 ${isRecording ? "bg-red-500/20 text-red-500 ring-2 ring-red-500 animate-pulse" : "bg-gray-800 hover:bg-gray-700 text-gray-400"} ${!recognitionRef.current ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                             <Mic className="w-5 h-5" />
                         </button>
