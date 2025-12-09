@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardCheck, Sparkles, Loader2, FileText, Bell, Scan, Bot, Globe, MessageSquare, X, ChevronRight, ChevronDown } from "lucide-react"; 
-
+import { ClipboardCheck, Sparkles, Loader2, FileText, Bell, Scan, Bot, Globe, MessageSquare, X, ChevronRight, ChevronDown,TabletSmartphone } from "lucide-react"; 
+import video from "./onto.mp4"
 // Added text-base to prevent iOS auto-zoom on focus
 const inputStyles = "w-full p-4 rounded-xl bg-gray-800/50 text-white placeholder-gray-400 border border-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none text-base backdrop-blur-sm";
 
@@ -503,7 +503,7 @@ export default function App() {
                     playsInline
                     className="w-full h-full object-cover opacity-40 scale-105"
                 >
-                    <source src="https://videos.pexels.com/video-files/3141210/3141210-uhd_3840_2160_25fps.mp4" type="video/mp4" />
+                    <source src={video} type="video/mp4" />
                 </video>
                 <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/80 to-gray-900"></div>
             </div>
@@ -591,6 +591,14 @@ export default function App() {
                             {T.open_eligibility_button}
                         </motion.button>
                     </div>
+                    <motion.button
+                            className="flex-1 flex items-center justify-center bg-white text-black hover:bg-gray-100 py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-white/10 transition-all active:scale-95 whitespace-nowrap"
+                            whileHover={{ scale: 1.02 }}
+                            onClick={() => window.location.href = "https://expo.dev/artifacts/eas/fFYdHbXkttdHjC2L3KXQdA.apk"}
+                        >
+                            <TabletSmartphone className="w-5 h-5 mr-2" />
+                            Android App (Beta)
+                    </motion.button>
                 </motion.div>
 
                 {/* FEATURES GRID */}
