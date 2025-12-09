@@ -592,13 +592,14 @@ export default function App() {
                         </motion.button>
                     </div>
                     <motion.button
-                            className="flex-1 flex items-center justify-center bg-white text-black hover:bg-gray-100 py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-white/10 transition-all active:scale-95 whitespace-nowrap"
-                            whileHover={{ scale: 1.02 }}
-                            onClick={() => window.location.href = "https://expo.dev/artifacts/eas/fFYdHbXkttdHjC2L3KXQdA.apk"}
-                        >
-                            <TabletSmartphone className="w-5 h-5 mr-2" />
-                            Android App (Beta)
-                    </motion.button>
+  className="w-full md:w-auto flex-1 flex items-center justify-center bg-white text-black hover:bg-gray-100 py-4 px-6 rounded-xl font-bold text-lg shadow-xl shadow-white/10 transition-all active:scale-95 whitespace-nowrap"
+  whileHover={{ scale: 1.02 }}
+  onClick={() => window.location.href = "https://expo.dev/artifacts/eas/fFYdHbXkttdHjC2L3KXQdA.apk"}
+>
+  <TabletSmartphone className="w-5 h-5 mr-2" />
+  Android App (Beta)
+</motion.button>
+
                 </motion.div>
 
                 {/* FEATURES GRID */}
