@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 // Added Volume2 and VolumeX for the TTS toggle
 import { Send, Mic, Globe, MessageSquare, ChevronDown, X, Bell, Upload, CheckCircle, Trash2, Copy, Reply, Share, ThumbsUp, Laugh, Lightbulb, MoreHorizontal, FileText, Loader2, Bot, Volume2, VolumeX } from "lucide-react";
-
+import video from "./onto.mp4"
 // --- API Configuration and Utilities ---
 const CHAT_BASE_URL = "https://sarkari-sahayek-1.onrender.com/api";
 const CHAT_API_URL = `${CHAT_BASE_URL}/chat`;
@@ -700,7 +700,7 @@ export default function App() {
         <div className="absolute inset-0 z-0">
             <video
                 ref={videoRef}
-                src="https://videos.pexels.com/video-files/3141210/3141210-uhd_3840_2160_25fps.mp4"
+                src={video}
                 autoPlay loop muted playsInline
                 className="w-full h-full object-cover opacity-40"
             />
