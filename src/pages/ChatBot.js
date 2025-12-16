@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 // Added Volume2 and VolumeX for the TTS toggle
 import { Send, Mic, Globe, MessageSquare, ChevronDown, X, Bell, Upload, CheckCircle, Trash2, Copy, Reply, Share, ThumbsUp, Laugh, Lightbulb, MoreHorizontal, FileText, Loader2, Bot, Volume2, VolumeX } from "lucide-react";
-import video from "./one.mp4"
+import video from "./onto.mp4"
 // --- API Configuration and Utilities ---
 const CHAT_BASE_URL = "https://sarkari-sahayek-1.onrender.com/api";
 const CHAT_API_URL = `${CHAT_BASE_URL}/chat`;
