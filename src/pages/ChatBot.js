@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 // Added Volume2 and VolumeX for the TTS toggle
 import { Send, Mic, Globe, MessageSquare, ChevronDown, X, Bell, Upload, CheckCircle, Trash2, Copy, Reply, Share, ThumbsUp, Laugh, Lightbulb, MoreHorizontal, FileText, Loader2, Bot, Volume2, VolumeX } from "lucide-react";
-import video from "./onto.mp4"
+import video from "./one.mp4"
+import { createPortal } from 'react-dom';
 // --- API Configuration and Utilities ---
 const CHAT_BASE_URL = "https://sarkari-sahayek-1.onrender.com/api";
 const CHAT_API_URL = `${CHAT_BASE_URL}/chat`;
@@ -189,12 +190,11 @@ const parseAIContent = (data) => {
 // Notification Dropdown Component
 // Fetches mock notifications from a remote source or uses a local fallback
 // ---------------------------
-const Notifications = ({ onSelectNotification, themeColors }) => {
+const Notifications = ({ handleSendMessage, themeColors }) => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Mock API call for notifications
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch("https://sarkari-sahayek-1.onrender.com/api/notifications");
@@ -203,11 +203,10 @@ const Notifications = ({ onSelectNotification, themeColors }) => {
       else if (data?.notifications && Array.isArray(data.notifications)) setNotifications(data.notifications);
       else setNotifications([]);
     } catch (err) {
-      // Fallback notifications if API fails
       setNotifications([
-         { id: 1, title: "New Scheme Alert: Digital India", time: "2h ago", question: "What is the new Digital India scheme?" },
-         { id: 2, title: "Tax Deadline Approaching", time: "1d ago", question: "When is the next tax deadline?" },
-         { id: 3, title: "Passport renewal status update", time: "3d ago", question: "Check passport renewal status." },
+        { id: 1, title: "New Scheme Alert: Digital India", time: "2h ago", question: "What is the new Digital India scheme?" },
+        { id: 2, title: "Tax Deadline Approaching", time: "1d ago", question: "When is the next tax deadline?" },
+        { id: 3, title: "Passport renewal status update", time: "3d ago", question: "Check passport renewal status." },
       ]);
     }
   }, []);
@@ -216,54 +215,90 @@ const Notifications = ({ onSelectNotification, themeColors }) => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleAskAI = (question) => {
+    if (question && handleSendMessage) {
+      handleSendMessage(question); // This now correctly calls the chat function
+    }
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
-      <button onClick={() => setIsOpen(!isOpen)} className={`relative p-2.5 rounded-full bg-gray-800/80 hover:bg-gray-700 transition duration-300 shadow-lg border border-gray-700`} title="Notifications">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative p-3 rounded-full bg-gray-800/80 hover:bg-gray-700 active:bg-gray-600 transition-all duration-200 shadow-lg border border-gray-700"
+        aria-label="Notifications"
+      >
         <Bell className={`w-5 h-5 md:w-6 md:h-6 ${themeColors.primary_text}`} />
         {notifications.length > 0 && (
-          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-bold border-2 border-gray-900 animate-pulse">{notifications.length}</span>
+          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-gray-900 animate-pulse">
+            {notifications.length > 99 ? '99+' : notifications.length}
+          </span>
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-4 w-80 md:w-96 bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-2xl shadow-2xl z-50 max-h-[80vh] overflow-y-auto transform origin-top-right transition-all duration-300 animate-fade-in ring-1 ring-white/10">
-          <div className="p-4 flex justify-between items-center border-b border-gray-800 sticky top-0 bg-gray-900/95 backdrop-blur-xl z-10">
-            <span className="font-bold text-gray-100 text-base">Notifications</span>
-            <X className="w-5 h-5 cursor-pointer text-gray-400 hover:text-white transition" onClick={() => setIsOpen(false)} />
-          </div>
-          {notifications.length === 0 ? (
-            <p className="p-6 text-gray-400 text-sm text-center">No new notifications.</p>
-          ) : (
-            notifications.map((notif) => (
-              <div key={notif.id} className="p-4 border-b border-gray-800 hover:bg-gray-800/50 transition duration-150 flex justify-between items-start gap-3">
-                <div>
-                  <p className="text-gray-200 font-medium text-sm leading-snug">{notif.title}</p>
-                  <p className="text-gray-500 text-xs mt-1">{notif.time}</p>
-                </div>
-                <button
-                  onClick={() => { onSelectNotification(notif.question); setIsOpen(false); }}
-                  className={`${themeColors.primary_bg} text-white px-3 py-1.5 rounded-lg ${themeColors.primary_hover} text-xs font-medium shadow-md whitespace-nowrap`}
-                >
-                  Ask AI
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {isOpen && createPortal(
+  <>
+    {/* Dark backdrop */}
+    <div 
+      className="fixed inset-0 bg-black/60 z-[9998]" 
+      onClick={() => setIsOpen(false)}
+    />
+
+    {/* Dropdown panel */}
+    <div className="fixed top-20 right-4 z-[9999] w-96 max-w-[calc(100vw-2rem)] bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="px-5 py-4 flex justify-between items-center border-b border-gray-800 sticky top-0 bg-gray-900/95 backdrop-blur-xl">
+        <h3 className="font-bold text-gray-100 text-lg">Notifications</h3>
+        <button 
+          onClick={() => setIsOpen(false)}
+          className="p-1.5 rounded-lg hover:bg-gray-800 transition"
+        >
+          <X className="w-5 h-5 text-gray-400 hover:text-white" />
+        </button>
+      </div>
+
+      <div className="max-h-[60vh] overflow-y-auto">
+        {notifications.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-10 px-6">No new notifications.</p>
+        ) : (
+          notifications.map((notif, index) => (
+  <div
+    key={notif.id || index} // Use ID if available, otherwise index
+    className="px-5 py-4 border-b border-gray-800 last:border-0 hover:bg-gray-800/50 transition duration-150 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4"
+  >
+    <div className="flex-1">
+      <p className="text-gray-200 font-medium text-sm sm:text-base leading-snug">
+        {notif.title}
+      </p>
+      <p className="text-gray-500 text-xs mt-1">{notif.time}</p>
+    </div>
+    <button
+      onClick={() => handleAskAI(notif.question)}
+      className={`${themeColors.primary_bg} ${themeColors.primary_hover} text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md active:scale-95 transition-transform min-w-[110px]`}
+    >
+      Ask AI
+    </button>
+  </div>
+))
+        )}
+      </div>
+    </div>
+  </>,
+  document.body // This is the key: renders directly on <body>
+)}
     </div>
   );
 };
-
 // ---------------------------
 // Eligibility Form Modal
 // Collects user data to check for relevant schemes (mocked for this app)
@@ -850,7 +885,10 @@ const handleSendMessage = async (text = inputMessage) => {
 
                 {/* Right side controls */}
                 <div className="flex items-center gap-2 md:gap-3">
-                    <Notifications onSelectNotification={handleSendMessage} themeColors={themeColors} />
+                    <Notifications 
+  handleSendMessage={handleSendMessage}
+  themeColors={themeColors} 
+/>
                     
                     {/* Eligibility Check Button */}
                     <button onClick={() => setShowEligibilityModal(true)} className="p-2.5 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-700 transition shadow-lg" title="Check Eligibility">
