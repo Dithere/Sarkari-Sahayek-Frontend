@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 // Added Volume2 and VolumeX for the TTS toggle
 import { Send, Mic, Globe, MessageSquare, ChevronDown, X, Bell, Upload, CheckCircle, Trash2, Copy, Reply, Share, ThumbsUp, Laugh, Lightbulb, MoreHorizontal, FileText, Loader2, Bot, Volume2, VolumeX } from "lucide-react";
-import video from "./onto.mp4"
+import video from "./one.mp4"
 // --- API Configuration and Utilities ---
 const CHAT_BASE_URL = "https://sarkari-sahayek-1.onrender.com/api";
 const CHAT_API_URL = `${CHAT_BASE_URL}/chat`;
@@ -69,14 +69,32 @@ const FAQCard = ({ question, summary, onClick, themeColors }) => (
 // ---------------------------
 // Animated Typing Indicator
 // ---------------------------
-const TypingIndicator = ({ themeColors }) => (
-  <div className="flex space-x-1.5 items-center p-4 bg-gray-800/80 text-gray-400 rounded-t-2xl rounded-br-2xl shadow-lg w-fit backdrop-blur-sm border border-gray-700/30">
-    <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0s' }} />
-    <div className={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.2s' }} />
-    <div class={`w-2 h-2 md:w-2.5 md:h-2.5 bg-${themeColors.primary_color}-400 rounded-full animate-bounce`} style={{ animationDuration: '1s', animationDelay: '0.4s', marginRight: '4px' }} />
-  </div>
-);
+// ---------------------------
+// Letter-by-Letter Typing Animation (ChatGPT Style)
+// ---------------------------
+const TypingText = ({ text, onComplete }) => {
+  const [displayedText, setDisplayedText] = useState('');
+  
+  useEffect(() => {
+    if (!text) return;
+    
+    setDisplayedText(''); // Reset
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < text.length) {
+        setDisplayedText(prev => prev + text[index]);
+        index++;
+      } else {
+        clearInterval(interval);
+        onComplete?.();
+      }
+    }, 20); // Speed of typing (lower = faster)
 
+    return () => clearInterval(interval);
+  }, [text, onComplete]);
+
+  return <span className="text-gray-100">{displayedText}</span>;
+};
 // ---------------------------
 // Parse AI structured response into React elements
 // Handles text, ordered lists, tables, links, and specific schemes objects
@@ -319,120 +337,174 @@ const EligibilityFormModal = ({ isOpen, onClose, onSubmit, themeColors }) => {
 // Message Bubble Component
 // Handles user and AI messages, actions like copy, reply, delete, and reactions
 // ---------------------------
+// ---------------------------
+// Updated Typing Indicator (more ChatGPT-like)
+// ---------------------------
+// ---------------------------
+// Minimal Typing Indicator - Only Bouncing Dots
+// ---------------------------
+const TypingIndicator = ({ themeColors }) => (
+  <div className="flex items-center py-6">
+    <div className="flex space-x-2 text-5xl font-extrabold leading-none">
+      <span 
+        className={`text-${themeColors.primary_color}-400 animate-bounce`}
+        style={{ animationDelay: '0ms' }}
+      >.</span>
+      <span 
+        className={`text-${themeColors.primary_color}-400 animate-bounce`}
+        style={{ animationDelay: '150ms' }}
+      >.</span>
+      <span 
+        className={`text-${themeColors.primary_color}-400 animate-bounce`}
+        style={{ animationDelay: '300ms' }}
+      >.</span>
+    </div>
+  </div>
+);
+// ---------------------------
+// Updated Message Bubble – ChatGPT Style (No Background, Full Width AI Messages)
+// ---------------------------
+// ---------------------------
+// Fully Transparent Message Bubble – True ChatGPT Style
+// ---------------------------
 const MessageBubble = ({ message, themeColors, handleReact, handleMessageAction }) => {
-    const isUser = message.sender === "user";
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-    const menuRef = useRef(null);
+  const isUser = message.sender === "user";
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [typedText, setTypedText] = useState('');
+  const menuRef = useRef(null);
 
-    const bubbleClasses = isUser
-        ? `${themeColors.primary_bg} text-white rounded-2xl rounded-tr-sm ml-auto shadow-md`
-        : "bg-gray-800/90 text-gray-100 rounded-2xl rounded-tl-sm mr-auto shadow-md border border-gray-700/50";
-
-    // Close menu when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setIsMenuOpen(false);
-                setIsEmojiPickerOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const handleCopy = () => {
-        // Handle copying text or a placeholder if the content is complex (like an image)
-        const textToCopy = typeof message.text === "string" ? message.text : "AI response content";
-        // Use document.execCommand('copy') for better iFrame compatibility
-        try {
-            const textarea = document.createElement('textarea');
-            textarea.value = textToCopy;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
+  // For AI messages: extract plain text for typing animation
+  const getPlainText = (content) => {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content.map(item => {
+        if (item.type?.displayName === 'p' || typeof item.props.children === 'string') {
+          return item.props.children || '';
         }
+        return '';
+      }).join('\n');
+    }
+    return '';
+  };
+
+  const plainText = isUser ? '' : getPlainText(message.text);
+
+  useEffect(() => {
+    if (!isUser && message.isTyping) {
+      setTypedText('');
+    }
+  }, [message.isTyping, isUser]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
+        setIsEmojiPickerOpen(false);
+      }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    const emojis = ["👍", "😂", "💡", "🤔", "❤️"];
+  const handleCopy = () => {
+    const text = isUser 
+      ? (typeof message.text === 'string' ? message.text : '') 
+      : plainText;
+    navigator.clipboard.writeText(text);
+    setIsMenuOpen(false);
+  };
 
-    return (
-        <div className={`group flex ${isUser ? "justify-end" : "justify-start"} mb-4 md:mb-6 transition-all duration-500 animate-fade-in px-2 md:px-0`}>
-            <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%]" ref={menuRef}>
-                <div className={`relative p-3.5 md:p-5 ${bubbleClasses} backdrop-blur-sm`}>
-                    {/* Render message content. Handles both string text and complex React elements (like images/parsed content) */}
-                    {/* If message.text is an object, it's already a React element (e.g., from parseAIContent) */}
-                    {message.text && (typeof message.text === "string" ? (
-                        <p className="whitespace-pre-wrap leading-relaxed text-sm md:text-base">{message.text}</p>
-                    ) : (
-                        message.text
-                    ))}
+  const emojis = ["👍", "😂", "💡", "❤️", "🔥"];
 
-                    {/* Actions Trigger (MoreHorizontal icon) */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsMenuOpen((p) => !p);
-                        }}
-                        className={`absolute -top-3 ${isUser ? "-left-3" : "-right-3"} 
-                            opacity-0 group-hover:opacity-100 md:focus:opacity-100 active:opacity-100 p-1.5 rounded-full 
-                            bg-gray-700 text-gray-300 shadow-lg border border-gray-600
-                            transition-all duration-200 z-10 transform scale-90 hover:scale-100`}
-                    >
-                        <MoreHorizontal className="w-4 h-4" />
-                    </button>
-
-                    {/* Reactions Display */}
-                    {message.reactions && message.reactions.length > 0 && (
-                        <div className={`flex flex-wrap gap-1 mt-2 pt-2 border-t ${isUser ? 'border-white/20' : 'border-gray-700'} ${isUser ? "justify-end" : "justify-start"}`}>
-                            {message.reactions.map((r) => (
-                                <span 
-                                    key={r.emoji} 
-                                    onClick={() => handleReact(message.id, r.emoji)} 
-                                    className="cursor-pointer text-[10px] md:text-xs bg-black/20 rounded-full px-2 py-0.5 hover:bg-black/40 transition"
-                                >
-                                    {r.emoji} {r.count}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Dropdown Menu */}
-                {isMenuOpen && (
-                    <div className={`absolute z-50 w-40 rounded-xl shadow-2xl bg-gray-800 border border-gray-700 overflow-hidden ${isUser ? 'right-0' : 'left-0'} mt-2 animate-fade-in`}>
-                        <div className="flex flex-col py-1">
-                             <button onClick={() => handleMessageAction(message.id, "reply")} className="flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/80"><Reply className="w-4 h-4 mr-3" /> Reply</button>
-                             <button onClick={handleCopy} className="flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/80"><Copy className="w-4 h-4 mr-3" /> Copy</button>
-                             <button onClick={(e) => { e.stopPropagation(); setIsEmojiPickerOpen(!isEmojiPickerOpen); }} className="flex items-center px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/80"><ThumbsUp className="w-4 h-4 mr-3" /> React</button>
-                             <div className="h-px bg-gray-700 my-1"></div>
-                             <button onClick={() => handleMessageAction(message.id, "delete")} className="flex items-center px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20"><Trash2 className="w-4 h-4 mr-3" /> Delete</button>
-                        </div>
-                         {/* Emoji Picker */}
-                         {isEmojiPickerOpen && (
-                            <div className="bg-gray-900 p-2 flex justify-around border-t border-gray-700">
-                                {emojis.map((emoji) => (
-                                    <button 
-                                        key={emoji} 
-                                        className="text-lg hover:scale-125 transition" 
-                                        onClick={() => { handleReact(message.id, emoji); setIsMenuOpen(false); }}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+  return (
+    <div className={`group relative ${isUser ? "text-right" : "text-left"} mb-8 animate-fade-in`}>
+      <div className={`inline-block ${isUser ? "ml-auto max-w-[80%]" : "mr-auto w-full"}`} ref={menuRef}>
+        
+        {/* Message Content - Fully Transparent */}
+        <div className="px-1 py-2">
+          {isUser ? (
+            // User Message - Keep colored bubble (like ChatGPT)
+            <div className={`inline-block px-5 py-3 rounded-2xl bg-gradient-to-br from-${themeColors.primary_color}-600 to-${themeColors.primary_color}-700 text-white shadow-lg max-w-full`}>
+              {typeof message.text === "string" ? (
+                <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{message.text}</p>
+              ) : message.text}
             </div>
+          ) : message.isTyping ? (
+            // AI Typing Animation
+            <div className="text-sm md:text-base leading-relaxed text-gray-100">
+              <TypingText 
+                text={plainText} 
+                onComplete={() => {
+                  // Optional: mark as fully displayed
+                }} 
+              />
+              <span className="inline-block w-3 h-5 animate-pulse bg-gray-400 rounded ml-0.5">|</span>
+            </div>
+          ) : (
+            // AI Full Message
+            <div className="text-sm md:text-base leading-relaxed text-gray-100 whitespace-pre-wrap">
+              {message.text}
+            </div>
+          )}
         </div>
-    );
-};
 
+        {/* Hover Action Button */}
+        {!message.isTyping && (
+          <div className={`absolute top-2 ${isUser ? "left-0 -translate-x-full" : "right-0 translate-x-full"} opacity-0 group-hover:opacity-100 transition-opacity flex items-center`}>
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 bg-gray-800/90 backdrop-blur rounded-full shadow-lg border border-gray-700 hover:bg-gray-700"
+            >
+              <MoreHorizontal className="w-4 h-4 text-gray-300" />
+            </button>
+          </div>
+        )}
+
+        {/* Reactions */}
+        {message.reactions?.length > 0 && (
+          <div className="flex gap-2 mt-3">
+            {message.reactions.map((r, i) => (
+              <span key={i} className="px-3 py-1 text-xs bg-gray-800/70 rounded-full cursor-pointer hover:bg-gray-700">
+                {r.emoji} {r.count || ""}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Menu Dropdown */}
+      {isMenuOpen && !message.isTyping && (
+        <div className={`absolute z-50 mt-2 w-48 bg-gray-800/95 backdrop-blur border border-gray-700 rounded-xl shadow-2xl ${isUser ? "right-0" : "left-0"}`}>
+          <div className="py-2">
+            <button onClick={() => handleMessageAction(message.id, "reply")} className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-3">
+              <Reply className="w-4 h-4" /> Reply
+            </button>
+            <button onClick={handleCopy} className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-3">
+              <Copy className="w-4 h-4" /> Copy
+            </button>
+            <button onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)} className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-3">
+              <ThumbsUp className="w-4 h-4" /> React
+            </button>
+            <hr className="my-1 border-gray-700" />
+            <button onClick={() => handleMessageAction(message.id, "delete")} className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-3">
+              <Trash2 className="w-4 h-4" /> Delete
+            </button>
+          </div>
+          {isEmojiPickerOpen && (
+            <div className="px-3 py-3 border-t border-gray-700 flex gap-4 justify-center">
+              {emojis.map(emoji => (
+                <button key={emoji} onClick={() => { handleReact(message.id, emoji); setIsMenuOpen(false); }} className="text-xl hover:scale-125 transition">
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 // ---------------------------
 // Main App Component
 // ---------------------------
@@ -522,58 +594,115 @@ export default function App() {
   };
 
   // Main function to send message to AI
-  const handleSendMessage = async (text = inputMessage) => {
-    if (!text.trim() || isLoading) return;
-    
-    const userMessage = { id: Date.now(), text, sender: "user", reactions: [] };
-    setMessages((prev) => [...prev, userMessage]);
-    setInputMessage(""); 
-    setIsInitialState(false); 
-    setIsLoading(true);
+const handleSendMessage = async (text = inputMessage) => {
+  if (!text.trim() || isLoading) return;
 
-    try {
-      // Use the mock API endpoint for the AI chat logic
-      const response = await fetch(CHAT_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Send user message, selected language, and session ID for context
-        body: JSON.stringify({ message: text, language: selectedLanguage, session_id: sessionId }),
-      });
-      
-      if (!response.ok) {
-        // Custom check for 403 error to inform the user about the API Key issue
-        if (response.status === 403 || response.status === 401) {
-            throw new Error("API Key Error (403/401): The custom chat API key is invalid or unauthorized.");
-        }
-        throw new Error("API request failed.");
-      }
-      
-      const data = await response.json();
-      
-      // Parse the structured AI response into displayable React elements
-      const aiMessageContent = parseAIContent(data);
-      const aiMessage = { id: Date.now() + 1, text: aiMessageContent, sender: "ai", reactions: [] };
-      setMessages((prev) => [...prev, aiMessage]);
-      
-      // If voice reply is enabled, speak the answer text
-      if (isVoiceReply && data.answer) speakText(data.answer);
-    
-    } catch (error) {
-      console.error("Chat API Error:", error);
-      
-      let errorMessageText = "⚠️ सर्वर अनुपलब्ध है। (Server unavailable.)";
-      if (error.message.includes("403") || error.message.includes("401")) {
-          errorMessageText = "🔑 **API कुंजी त्रुटि (403/401)**: Chat API Key अमान्य या अनुपलब्ध है। कृपया जांच करें कि कुंजी सही से कॉन्फ़िगर की गई है।";
-      }
-
-      const errorMessage = { id: Date.now() + 2, text: errorMessageText, sender: "ai", reactions: [] };
-      setMessages((prev) => [...prev, errorMessage]);
-      
-    } finally { 
-      setIsLoading(false); 
-    }
+  const userMessage = {
+    id: Date.now(),
+    text,
+    sender: "user",
+    reactions: [],
   };
+  setMessages((prev) => [...prev, userMessage]);
+  setInputMessage("");
+  setIsInitialState(false);
+  setIsLoading(true);
 
+  // === STEP 1: Show 3 bouncing dots immediately ===
+  const typingIndicatorId = "typing-" + Date.now(); // Unique, identifiable ID
+  const typingIndicator = {
+    id: typingIndicatorId,
+    sender: "ai",
+    isTypingIndicator: true, // This triggers <TypingIndicator /> in JSX
+    reactions: [],
+  };
+  setMessages((prev) => [...prev, typingIndicator]);
+
+  try {
+    const response = await fetch(CHAT_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        language: selectedLanguage,
+        session_id: sessionId,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 403 || response.status === 401) {
+        throw new Error("API Key Error (403/401): Invalid or unauthorized key.");
+      }
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const plainAnswer = data.answer || "No response received.";
+
+    // === STEP 2: Replace dots with letter-by-letter typing ===
+    // === STEP 2: Replace dots with letter-by-letter typing after a short delay ===
+    setTimeout(() => {
+      const typingMessage = {
+        id: typingIndicatorId,
+        text: plainAnswer,
+        sender: "ai",
+        isTyping: true,
+        isTypingIndicator: false,
+        reactions: [],
+      };
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === typingIndicatorId ? typingMessage : m))
+      );
+    }, 200); // 300ms delay ensures dots are visible
+
+    // === STEP 3: Wait for simulated typing to finish, then show full rich content ===
+    const typingDuration = Math.max(plainAnswer.length * 18, 1500) + 600; // 18ms per char, min 1.5s, +600ms buffer
+
+    setTimeout(() => {
+      const fullContent = parseAIContent(data);
+
+      const finalMessage = {
+        id: typingIndicatorId,
+        text: fullContent,
+        sender: "ai",
+        isTyping: false,
+        reactions: [],
+      };
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === typingIndicatorId ? finalMessage : m))
+      );
+
+      // Speak answer if voice reply is enabled
+      if (isVoiceReply && data.answer) {
+        speakText(data.answer);
+      }
+    }, typingDuration);
+
+  } catch (error) {
+    console.error("Chat API Error:", error);
+
+    // Remove typing indicator on error
+    setMessages((prev) => prev.filter((m) => m.id === typingIndicatorId));
+
+    const errorText =
+      error.message.includes("403") || error.message.includes("401")
+        ? "API कुंजी त्रुटि: आपकी API key अमान्य है।"
+        : "सर्वर से कनेक्ट नहीं हो पाया। कृपया बाद में फिर कोशिश करें।";
+
+    const errorMessage = {
+      id: Date.now(),
+      text: errorText,
+      sender: "ai",
+      reactions: [],
+    };
+
+    setMessages((prev) => [...prev, errorMessage]);
+  } finally {
+    setIsLoading(false);
+  }
+};
   // Handles adding/removing reactions (emojis) to a message
   const handleReact = (messageId, emoji) => {
     setMessages(prev => prev.map(msg => {
@@ -764,39 +893,68 @@ export default function App() {
 
             {/* CHAT AREA - Displays messages */}
             <main className="flex-1 overflow-y-auto custom-scrollbar p-4 scroll-smooth">
-                {isInitialState && messages.length === 0 ? (
-                    // Initial Welcome Screen with FAQs
-                    <div className="h-full flex flex-col items-center justify-center p-4 text-center animate-fade-in">
-                         <div className={`mb-6 p-4 rounded-full bg-gray-800/50 border border-gray-700 shadow-2xl`}>
-                             {/* The fixed Bot icon, which caused the error */}
-                             <Bot className={`w-12 h-12 md:w-16 md:h-16 ${themeColors.primary_text}`} />
-                         </div>
-                         <h2 className="text-2xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400 mb-3">Namaste!</h2>
-                         <p className="text-gray-400 max-w-md mb-8 text-sm md:text-base">I am your AI Assistant for Government Services. How can I help you today?</p>
-                         
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
-                            {initialFAQs.map(faq => (
-                                <FAQCard key={faq.id} {...faq} onClick={() => handleSendMessage(faq.question)} themeColors={themeColors} />
-                            ))}
-                         </div>
-                    </div>
-                ) : (
-                    // Message History
-                    <div className="max-w-3xl mx-auto pb-4">
-                        {messages.map(msg => (
-                            <MessageBubble 
-                                key={msg.id} 
-                                message={msg} 
-                                themeColors={themeColors} 
-                                handleReact={handleReact} 
-                                handleMessageAction={handleMessageAction} 
-                            />
-                        ))}
-                        {isLoading && <TypingIndicator themeColors={themeColors} />}
-                        <div ref={messagesEndRef} />
-                    </div>
-                )}
-            </main>
+  {isInitialState && messages.length === 0 ? (
+    // Initial Welcome Screen with FAQs
+    <div className="h-full flex flex-col items-center justify-center p-4 text-center animate-fade-in">
+      <div className={`mb-6 p-4 rounded-full bg-gray-800/50 border border-gray-700 shadow-2xl`}>
+        <Bot className={`w-12 h-12 md:w-16 md:h-16 ${themeColors.primary_text}`} />
+      </div>
+      <h2 className="text-2xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400 mb-3">
+        Namaste!
+      </h2>
+      <p className="text-gray-400 max-w-md mb-8 text-sm md:text-base">
+        I am your AI Assistant for Government Services. How can I help you today?
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+        {initialFAQs.map((faq) => (
+          <FAQCard
+            key={faq.id}
+            {...faq}
+            onClick={() => handleSendMessage(faq.question)}
+            themeColors={themeColors}
+          />
+        ))}
+      </div>
+    </div>
+  ) : (
+    // Active Chat View
+    <div className="w-full max-w-4xl mx-auto pb-8">
+  {messages.map((msg) => {
+    if (msg.isTypingIndicator) {
+      return (
+        <div key={msg.id} className="flex justify-start mb-8">
+          <div className="px-1 py-2">
+            <TypingIndicator themeColors={themeColors} />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <MessageBubble
+        key={msg.id}
+        message={msg}
+        themeColors={themeColors}
+        handleReact={handleReact}
+        handleMessageAction={handleMessageAction}
+      />
+    );
+  })}
+
+  {/* Fallback safety dots */}
+  {isLoading && !messages.some(m => m.isTypingIndicator) && (
+    <div className="flex justify-start mb-8">
+      <div className="px-1 py-2">
+        <TypingIndicator themeColors={themeColors} />
+      </div>
+    </div>
+  )}
+
+  <div ref={messagesEndRef} />
+</div>
+  )}
+</main>
 
             {/* INPUT AREA - Message composer and controls */}
             <footer className="flex-shrink-0 p-3 md:p-5 bg-gray-900/60 backdrop-blur-xl border-t border-white/10">
