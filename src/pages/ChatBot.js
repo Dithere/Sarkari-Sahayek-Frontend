@@ -801,7 +801,9 @@ const handleSendMessage = async (text = inputMessage) => {
   // Image/Document Upload handler using the Tesseract/GPT backend
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
-    if (!file || !file.type.startsWith('image/')) return; // Only process image files
+    if (!file || (!file.type.startsWith('image/') && file.type !== 'application/pdf')) {
+    return;
+} // Only process image files
 
     const objectURL = URL.createObjectURL(file);
     const userMessage = { id: Date.now(), text: <img src={objectURL} alt="Uploaded Document" className="max-h-48 rounded-lg border border-gray-600 shadow-xl" />, sender: "user", reactions: [] };
